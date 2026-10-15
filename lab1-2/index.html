@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Set the character encoding -->
+    <meta charset="utf-8">
+
+    <!-- Set the page title -->
+    <title>My First Web Map</title>
+
+    <!-- Make the map fit different screen sizes -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Load Mapbox CSS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+
+    <!-- Load Mapbox JavaScript -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+
+    <style>
+        /* Remove default spacing and make the map fill the screen */
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- This container displays the map -->
+    <div id="map"></div>
+
+    <script>
+        // Connect the map to my Mapbox account
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY3JpczYxNyIsImEiOiJjbXY5dTZ3M3QwNDZ0MnpwbTRnNXRpcnkwIn0.QsDI72-f_N5lSxClCaZ8cQ';
+
+        // Create a map centered on the UW Seattle campus
+        const mymap = new mapboxgl.Map({
+            container: 'map',
+
+            // Use the default Mapbox Standard style
+            // style: 'mapbox://styles/mapbox/light-v11',
+            // projection: 'globe',
+
+            // Set the center to UW Seattle
+            center: [-122.305, 47.655],
+
+            // Zoom in to show campus buildings
+            zoom: 16
+        });
+
+        // Change the appearance of the map after the style loads
+        mymap.on('style.load', () => {
+
+            // Use dusk lighting to give the map a warmer appearance
+            mymap.setConfigProperty('basemap', 'lightPreset', 'dusk');
+
+            // Hide points of interest to make the map less crowded
+            mymap.setConfigProperty('basemap', 'showPointOfInterestLabels', false);
+
+            // Hide road labels to keep the map simple
+            mymap.setConfigProperty('basemap', 'showRoadLabels', false);
+
+            // Keep transit labels visible for students using public transportation
+            mymap.setConfigProperty('basemap', 'showTransitLabels', false);
+
+        });
+
+        // Add a fullscreen button
+        mymap.addControl(new mapboxgl.FullscreenControl());
+
+        // Add zoom and compass controls
+        mymap.addControl(new mapboxgl.NavigationControl());
+
+    </script>
+    <!--
+    I hid road labels to make the map cleaner and easier to read.
+    This is useful when looking at the UW campus.
+
+    I also hid transit labels to reduce unnecessary information.
+    This helps users focus more on the campus layout.
+    -->
+
+</body>
+
+</html>

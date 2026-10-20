@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Global Earthquakes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Load Mapbox CSS and JavaScript -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+
+    <style>
+        /* Make the map fill the screen */
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* Legend box */
+        #legend {
+            position: absolute;
+            bottom: 40px;
+            right: 20px;
+            width: 120px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 1;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+
+        /* Legend rows */
+        .legend-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+            min-height: 36px;
+        }
+
+        /* Legend circles */
+        .legend-dot {
+            display: inline-block;
+            border-radius: 50%;
+            border: 1px solid white;
+            box-shadow: 0 0 0 1px #aaa;
+            flex-shrink: 0;
+        }
+
+        #legend a {
+            color: black;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Map and legend containers -->
+    <div id="map"></div>
+    <div id="legend"></div>
+
+    <script>
+
+        // Connect to my Mapbox account
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY3JpczYxNyIsImEiOiJjbXY5dTZ3M3QwNDZ0MnpwbTRnNXRpcnkwIn0.QsDI72-f_N5lSxClCaZ8cQ';
+
+        // Create a satellite map with a globe view
+        const mymap = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/satellite-v9',
+            projection: 'globe',
+            center: [-96, 37.8],
+            zoom: 1
+        });
+
+        // Add fog to the globe
+        mymap.on('style.load', () => {
+            mymap.setFog({});
+        });
+
+        // Load earthquake data from USGS
+        mymap.on('load', () => {
+
+            mymap.addSource('earthquakes', {
+                type: 'geojson',
+                data: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson'
+            });
+
+            // Show earthquakes using circle size and color
+            mymap.addLayer({
+                id: 'earthquakes-layer',
+                type: 'circle',
+                source: 'earthquakes',
+                paint: {
+
+                    // Larger earthquakes have larger circles
+                    'circle-radius': [
+                        'interpolate', ['linear'],
+                        ['to-number', ['get', 'mag'], 0],
+                        1, 0.7,
+                        1.5, 2,
+                        2, 4,
+                        2.5, 5,
+                        3, 6,
+                        3.5, 7,
+                        4.5, 9,
+                        6.5, 15,
+                        8.5, 17,
+                        10.5, 20
+                    ],
+
+                    // Stronger earthquakes have darker colors
+                    'circle-color': [
+                        'interpolate', ['linear'],
+                        ['to-number', ['get', 'mag'], 0],
+                        1, '#fff7ec',
+                        1.5, '#fee8c8',
+                        2, '#fdd49e',
+                        2.5, '#fdbb84',
+                        3, '#fc8d59',
+                        3.5, '#ef6548',
+                        4.5, '#d7301f',
+                        6.5, '#b30000',
+                        8.5, '#7f0000',
+                        10.5, '#000000'
+                    ],
+
+                    // Add a white outline around each circle
+                    'circle-stroke-width': 1,
+                    'circle-stroke-color': 'white'
+                }
+            });
+
+            // Show earthquake magnitude when clicking a circle
+            mymap.on('click', 'earthquakes-layer', (event) => {
+
+                const feature = event.features[0];
+                const coordinates = feature.geometry.coordinates.slice(0, 2);
+
+                new mapboxgl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(`<strong>Magnitude:</strong> ${feature.properties.mag}`)
+                    .addTo(mymap);
+
+            });
+
+        });
+
+        // Add zoom and compass controls
+        mymap.addControl(new mapboxgl.NavigationControl());
+
+        // Create a legend for earthquake magnitudes
+        const legend = document.getElementById('legend');
+
+        // These values match the map's circle sizes and colors
+        const grades = [2, 4.5, 8.5];
+        const radii = [4, 9, 17];
+        const colors = ['#fdd49e', '#d7301f', '#7f0000'];
+
+        let legendHTML = '<strong>Magnitude</strong>';
+
+        // Add circles and labels to the legend
+        for (let i = 0; i < grades.length; i++) {
+
+            const diameter = radii[i] * 2;
+
+            legendHTML += `
+                <div class="legend-row">
+                    <span class="legend-dot"
+                        style="background:${colors[i]};
+                        width:${diameter}px;
+                        height:${diameter}px;">
+                    </span>
+                    <span>${grades[i]}</span>
+                </div>
+            `;
+        }
+
+        // Add the data source
+        legendHTML += `
+            <p style="font-size:12px; margin-bottom:0;">
+                Source:
+                <a href="https://earthquake.usgs.gov/earthquakes/">USGS</a>
+            </p>
+        `;
+
+        // Display the legend
+        legend.innerHTML = legendHTML;
+
+    </script>
+
+</body>
+
+</html>

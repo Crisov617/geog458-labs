@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Global Population Hubs</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Load Mapbox -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* Map title */
+        #title {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 1;
+            max-width: 320px;
+        }
+
+        #title h2 {
+            margin: 0 0 8px;
+            font-size: 20px;
+        }
+
+        #title p {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* Legend box */
+        #legend {
+            position: absolute;
+            bottom: 40px;
+            right: 20px;
+            width: 180px;
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            z-index: 1;
+            font-size: 13px;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+            min-height: 32px;
+        }
+
+        .legend-dot {
+            display: inline-block;
+            border-radius: 50%;
+            border: 1px solid #14202b;
+            box-sizing: border-box;
+            flex-shrink: 0;
+        }
+
+        .legend-note {
+            font-size: 11px;
+            line-height: 1.5;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Map container -->
+    <div id="map"></div>
+
+    <!-- Map title -->
+    <div id="title">
+        <h2>Global Population Hubs</h2>
+        <p>Where are the world's megacities?</p>
+        <p>All cities are shown. Cities with 10 million or more people are highlighted in red.</p>
+    </div>
+
+    <!-- Legend container -->
+    <div id="legend"></div>
+
+    <script>
+
+        // Connect to Mapbox
+        mapboxgl.accessToken = 'pk.eyJ1IjoiY3JpczYxNyIsImEiOiJjbXY5dTZ3M3QwNDZ0MnpwbTRnNXRpcnkwIn0.QsDI72-f_N5lSxClCaZ8cQ';
+
+        // Create the map with a dark basemap
+        const mymap = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/dark-v11',
+            center: [10, 20],
+            zoom: 2
+        });
+
+        // Add zoom and compass controls
+        mymap.addControl(new mapboxgl.NavigationControl());
+
+        // Load the world cities dataset
+        mymap.on('load', () => {
+
+            mymap.addSource('cities', {
+                type: 'geojson',
+                data: 'data/world-cities.geojson'
+            });
+
+            // Show all cities using population-based circles
+            mymap.addLayer({
+                id: 'cities-layer',
+                type: 'circle',
+                source: 'cities',
+
+                paint: {
+
+                    // Circle area increases with population.
+                    // Square root scaling keeps large cities from becoming too big.
+                    // A 2px minimum radius keeps smaller cities visible.
+                    'circle-radius': [
+                        'max',
+                        2,
+                        [
+                            '*',
+                            4,
+                            [
+                                'sqrt',
+                                ['/', ['get', 'population'], 1000000]
+                            ]
+                        ]
+                    ],
+
+                    // Four population groups highlight the largest cities.
+                    // Red is used for cities with at least 10 million people.
+                    'circle-color': [
+                        'case',
+                        ['>=', ['get', 'population'], 10000000], '#ff6b6b',
+                        ['>=', ['get', 'population'], 5000000], '#f6bd60',
+                        ['>=', ['get', 'population'], 1000000], '#48c3dc',
+                        '#8a9bab'
+                    ],
+
+                    'circle-opacity': 0.8,
+                    'circle-stroke-width': 0.5,
+                    'circle-stroke-color': '#14202b'
+                }
+            });
+
+            // Show city name and population when clicking a circle
+            mymap.on('click', 'cities-layer', (event) => {
+
+                const feature = event.features[0];
+
+                const city = feature.properties.accentcity;
+                const population = feature.properties.population;
+
+                const popupContent = document.createElement('div');
+
+                const cityName = document.createElement('strong');
+                cityName.textContent = city;
+
+                const populationText = document.createElement('p');
+                populationText.textContent =
+                    'Population: ' + Number(population).toLocaleString('en-US');
+
+                popupContent.appendChild(cityName);
+                popupContent.appendChild(populationText);
+
+                new mapboxgl.Popup()
+                    .setLngLat(event.lngLat)
+                    .setDOMContent(popupContent)
+                    .addTo(mymap);
+            });
+
+            // Change cursor when hovering over a city
+            mymap.on('mouseenter', 'cities-layer', () => {
+                mymap.getCanvas().style.cursor = 'pointer';
+            });
+
+            mymap.on('mouseleave', 'cities-layer', () => {
+                mymap.getCanvas().style.cursor = '';
+            });
+
+        });
+
+        // Create the map legend
+        const legend = document.getElementById('legend');
+
+        const populations = [
+            100000,
+            1000000,
+            5000000,
+            10000000
+        ];
+
+        const colors = [
+            '#8a9bab',
+            '#48c3dc',
+            '#f6bd60',
+            '#ff6b6b'
+        ];
+
+        const labels = [
+            '100K (under 1M)',
+            '1 million',
+            '5 million',
+            '10 million'
+        ];
+
+        let legendHTML = '<strong>City Population</strong>';
+
+        for (let i = 0; i < populations.length; i++) {
+
+            // Use the same radius calculation as the map.
+            const radius = Math.max(
+                2,
+                4 * Math.sqrt(populations[i] / 1000000)
+            );
+
+            const diameter = radius * 2;
+
+            legendHTML += `
+                <div class="legend-row">
+                    <span class="legend-dot"
+                        style="
+                            background:${colors[i]};
+                            width:${diameter}px;
+                            height:${diameter}px;
+                        ">
+                    </span>
+                    <span>${labels[i]}</span>
+                </div>
+            `;
+        }
+
+        legendHTML += `
+            <div class="legend-note">
+                Circle size represents population.
+                Colors highlight four population groups.
+                <br><br>
+                Source: Course GeoJSON (Natural Earth).
+            </div>
+        `;
+
+        legend.innerHTML = legendHTML;
+
+        /*
+        I used four population groups to highlight the largest cities.
+        Red shows cities with 10 million or more people.
+
+        Circle sizes increase with the square root of population.
+        This helps compare cities without making large circles too big.
+        Smaller cities have a minimum size so they remain visible.
+
+        I chose a dark basemap because the colored circles are easier
+        to see. All cities remain on the map.
+        */
+
+    </script>
+
+</body>
+
+</html>

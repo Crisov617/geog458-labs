@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lab 3: Puget Sound Precipitation</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.css">
+
+    <style>
+        body {
+            margin: 0;
+            font: 14px/1.5 Arial, sans-serif;
+            color: #182e3a;
+        }
+
+        #map {
+            position: absolute;
+            inset: 0;
+        }
+
+        #panel {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            padding: 16px;
+            width: 260px;
+            max-width: calc(100% - 100px);
+            background: white;
+            max-height: calc(100% - 80px);
+            overflow: auto;
+            border-radius: 6px;
+            z-index: 1;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 19px;
+        }
+
+        p {
+            margin: 8px 0;
+        }
+
+        .ramp {
+            height: 14px;
+            background: linear-gradient(
+                to right,
+                #f7fbff,
+                #c6dbef,
+                #6baed6,
+                #2171b5,
+                #08306b
+            );
+        }
+
+        .labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        label {
+            display: block;
+            margin: 6px 0;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="map"></div>
+
+<div id="panel">
+    <h1>Puget Sound Precipitation</h1>
+
+    <p>October 1, 2025 | NOAA Climate Data Online</p>
+
+    <p>
+        This map shows estimated daily precipitation across the Puget Sound
+        region using IDW interpolation from NOAA weather stations.
+    </p>
+
+    <label>
+        <input type="checkbox" id="show-rainfall" checked>
+        Show precipitation
+    </label>
+
+    <label>
+        <input type="checkbox" id="show-stations" checked>
+        Show weather stations
+    </label>
+
+    <p><strong>Estimated precipitation (inches)</strong></p>
+
+    <div class="ramp"></div>
+
+    <div class="labels">
+        <span>0.02</span>
+        <span>0.40</span>
+        <span>0.80</span>
+    </div>
+
+    <p style="font-size:12px;">
+        IDW estimates precipitation between monitoring stations.
+    </p>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@5.15.0/dist/maplibre-gl.js"></script>
+
+<script>
+    const map = new maplibregl.Map({
+        container: 'map',
+        center: [-122.33, 47.55],
+        zoom: 8.5,
+        minZoom: 8,
+        maxZoom: 12,
+        style: {
+            version: 8,
+            sources: {},
+            layers: []
+        }
+    });
+
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+    map.on('load', () => {
+
+        // Independent Mapbox basemap
+        map.addSource('basemap', {
+            type: 'raster',
+            tiles: [
+                'assets/mapbox-independent/{z}/{x}/{y}.png'
+            ],
+            tileSize: 256,
+            minzoom: 8,
+            maxzoom: 12
+        });
+
+        map.addLayer({
+            id: 'basemap',
+            type: 'raster',
+            source: 'basemap'
+        });
+
+        // Rainfall IDW raster
+        map.addSource('rainfall', {
+            type: 'raster',
+            tiles: [
+                'assets/rainfall/{z}/{x}/{y}.png'
+            ],
+            tileSize: 256,
+            minzoom: 8,
+            maxzoom: 12
+        });
+
+        map.addLayer({
+            id: 'rainfall',
+            type: 'raster',
+            source: 'rainfall',
+            paint: {
+                'raster-opacity': 0.70
+            }
+        });
+
+        // NOAA weather stations
+        map.addSource('stations', {
+            type: 'geojson',
+            data: 'data/rainfall_stations.geojson'
+        });
+
+        map.addLayer({
+            id: 'stations',
+            type: 'circle',
+            source: 'stations',
+            paint: {
+                'circle-radius': 5,
+                'circle-color': '#ffffff',
+                'circle-stroke-color': '#08306b',
+                'circle-stroke-width': 2
+            }
+        });
+
+        // Rainfall toggle
+        document.getElementById('show-rainfall')
+            .addEventListener('change', (e) => {
+                map.setLayoutProperty(
+                    'rainfall',
+                    'visibility',
+                    e.target.checked ? 'visible' : 'none'
+                );
+            });
+
+        // Station toggle
+        document.getElementById('show-stations')
+            .addEventListener('change', (e) => {
+                map.setLayoutProperty(
+                    'stations',
+                    'visibility',
+                    e.target.checked ? 'visible' : 'none'
+                );
+            });
+
+        // Station popup
+        map.on('click', 'stations', (e) => {
+            const feature = e.features[0];
+            const p = feature.properties;
+
+            const precipitation =
+                p.PRCP_num ?? p.PRCP ?? 'No data';
+
+            new maplibregl.Popup()
+                .setLngLat(feature.geometry.coordinates)
+                .setHTML(`
+                    <strong>${p.NAME || 'Weather Station'}</strong><br>
+                    Precipitation: ${precipitation} in<br>
+                    Date: ${p.DATE || '2025-10-01'}
+                `)
+                .addTo(map);
+        });
+
+        map.on('mouseenter', 'stations', () => {
+            map.getCanvas().style.cursor = 'pointer';
+        });
+
+        map.on('mouseleave', 'stations', () => {
+            map.getCanvas().style.cursor = '';
+        });
+    });
+</script>
+
+</body>
+</html>
